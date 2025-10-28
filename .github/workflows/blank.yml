@@ -1,0 +1,54 @@
+name: vprofile CICD Workflow
+on:
+  push:
+    branches: 
+          - main
+
+  pull_request:
+    branches: ["main"]
+  
+  permissions:
+    contents: read
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: code checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      
+      - name: Maven Build
+        run: mvn clean install
+      
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: target/*.war
+      
+      - name: Notify if Build fails
+        if: failure()
+        run: echo "Build failed! Please check the logs."
+  
+  Test:
+    runs-on: ubuntu-latest
+    needs: Build
+    steps:
+      - name: code checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      
+      - name: Run Test on Main branches
+        if: github.ref == 'refs/heads/main'
+        run: mvn test
+
+      - name: check style
+        if: github.ref == 'refs/heads/main'
+        run: mvn checkstyle:checkstyle
+
+      - name: Run test on Other branches
+        if: github.ref != 'refs/heads/main'
+        run: echo "Tests are skipped on non-main branches."
